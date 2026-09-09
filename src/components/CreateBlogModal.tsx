@@ -20,7 +20,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useBlog } from '@/context/BlogContext';
 import { useAuth } from '@/context/AuthContext';
 import { COLORS } from '@/utils/constants';
-import { Video, ResizeMode } from 'expo-av';
 import { uploadVideo } from '@/utils/cloudinary';
 
 interface CreateBlogModalProps {

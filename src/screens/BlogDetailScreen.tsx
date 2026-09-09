@@ -12,11 +12,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
 import { useBlog } from '@/context/BlogContext';
 import { useAuth } from '@/context/AuthContext';
 import { Blog } from '@/types';
 import { COLORS } from '@/utils/constants';
+
+// CORRECT import for expo-video
+import { Video } from 'expo-video';
 
 export default function BlogDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -125,7 +127,6 @@ export default function BlogDetailScreen() {
 
     if (Platform.OS === 'web') {
       console.log('🌐 Using HTML5 video for web');
-      // Use HTML5 video for web
       return (
         <View style={styles.videoContainer}>
           <video
@@ -148,18 +149,16 @@ export default function BlogDetailScreen() {
       );
     }
 
-    // Use expo-av for native
-    console.log('📱 Using expo-av for native');
+    // Native (iOS/Android) - Use expo-video
+    console.log('📱 Using expo-video for native');
     return (
       <View style={styles.videoContainer}>
         <Video
           ref={videoRef}
           source={{ uri: blog.videoUrl }}
           style={styles.videoPlayer}
-          useNativeControls
-          resizeMode={ResizeMode.CONTAIN}
+          nativeControls
           isLooping={false}
-          shouldPlay={false}
           onLoad={() => console.log('✅ Video loaded successfully')}
           onError={(error) => console.error('❌ Video error:', error)}
         />

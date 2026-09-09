@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
-const PROXY_URL = 'http://localhost:3000';
+const PROXY_URL = 'https://blog-app-h9uc.onrender.com';
 
 export const uploadVideo = async (videoUri: string): Promise<string> => {
   try {
