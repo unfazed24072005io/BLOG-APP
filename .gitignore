@@ -238,7 +238,6 @@ app/[...].tsx
 
 *.d.ts.map
 *.js.map
-*.js
 *.ts.map
 !*.d.ts
 !*.test.ts
