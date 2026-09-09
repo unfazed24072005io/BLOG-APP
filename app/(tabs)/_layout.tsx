@@ -1,68 +1,61 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { COLORS } from '@/utils/constants';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
+import { router } from 'expo-router';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+export default function TabsLayout() {
+  const { user, isAdmin, loading } = useAuth();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading]);
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: false,
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.gray400,
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: COLORS.gray200,
+          backgroundColor: COLORS.white,
+          paddingBottom: 8,
+          paddingTop: 8,
+          height: 60,
+          display: 'flex',
+        },
+      }}
+    >
+      {/* Always render both, but only show the one for the user */}
       <Tabs.Screen
-        name="index"
+        name="admin"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="grid" size={size} color={color} />
           ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
+          // Only show admin tab if user is admin
+          href: isAdmin ? '/(tabs)/admin' : null,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="user"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
+          title: 'Blogs',
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="book-open" size={size} color={color} />
           ),
+          // Only show user tab if user is NOT admin
+          href: !isAdmin ? '/(tabs)/user' : null,
         }}
       />
     </Tabs>
