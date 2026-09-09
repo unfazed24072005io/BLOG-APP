@@ -1,41 +1,279 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ====================
+# DEPENDENCIES
+# ====================
 
-# dependencies
 node_modules/
+.pnp/
+.pnp.js
+.pnp.loader.mjs
+
+# ====================
+# EXPO / REACT NATIVE
+# ====================
 
 # Expo
 .expo/
-dist/
-web-build/
 expo-env.d.ts
+.expo-shared/
+.expo-internal/
+.expo-cache/
+.expo-build-properties/
+expo.log
 
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# Native build outputs
+android/
+ios/
+*.apk
+*.ipa
+*.aab
 
-# Metro
-.metro-health-check*
+# Metro bundler
+metro.config.js
+*.devtools.json
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# ====================
+# GIT
+# ====================
+
+*.orig
+*.patch
+*.diff
+
+# ====================
+# IDE / EDITOR
+# ====================
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+*.code-workspace
+
+# WebStorm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Atom
+.atom/
+
+# ====================
+# OS GENERATED FILES
+# ====================
 
 # macOS
 .DS_Store
-*.pem
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
 
-# local env files
+# Windows
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+Desktop.ini
+
+# Linux
+.*.swp
+.*.swo
+*~
+
+# ====================
+# ENVIRONMENT & CONFIGURATION
+# ====================
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
 .env*.local
+.env.*.local
 
-# typescript
+# Firebase
+firebase-debug.log
+firestore-debug.log
+firebase.json
+.firebase/
+*.firebaserc
+firebase-debug.*
+
+# Cloudinary
+cloudinary.json
+cloudinary.yml
+
+# ====================
+# BUILD OUTPUTS
+# ====================
+
+# Build directories
+build/
+dist/
+out/
+public/build/
+public/dist/
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# Web build
+web-build/
+web-build-static/
+
+# ====================
+# LOGS & CACHE
+# ====================
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+.rpt2_cache/
+
+# ====================
+# TESTING
+# ====================
+
+coverage/
+.nyc_output/
+.coveralls.yml
+*.lcov
+*.test.js.map
+
+# ====================
+# MISCELLANEOUS
+# ====================
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+
+# Secret files
+*.pem
+*.p12
+*.key
+*.crt
+*.cer
+
+# ====================
+# DEPLOYMENT
+# ====================
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Server uploads
+server/uploads/
+server/temp/
+
+# ====================
+# PACKAGE MANAGERS
+# ====================
+
+# npm
+package-lock.json
+npm-shrinkwrap.json
+
+# yarn
+yarn.lock
+.yarn/
+.yarn-integrity
+
+# pnpm
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# ====================
+# EXPO SPECIFIC
+# ====================
+
+# Expo Router
+app/+native.ts
+app/+web.ts
+app/[...].tsx
+
+# Expo server files
+.server/
+.routes/
+
+# ====================
+# TYPESCRIPT
+# ====================
+
+*.d.ts.map
+*.js.map
+*.js
+*.ts.map
+!*.d.ts
+!*.test.ts
+!*.spec.ts
+
+# ====================
+# DEPENDENCY STUBS
+# ====================
+
+.next/
+out/
+.nuxt/
+dist/
+serverless/
+
+# ====================
+# COVERAGE
+# ====================
+
+*.lcov
+.coverage/
+.nyc_output/
+
+# ====================
+# MISCELLANEOUS
+# ====================
+
+*.tgz
+*.tar.gz
+*.zip
+*.7z
+*.rar
+*.gz
+.DS_Store
+.vercel
+.netlify
+.storybook-out
+.terraform

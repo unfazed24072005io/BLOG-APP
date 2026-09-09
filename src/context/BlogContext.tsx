@@ -37,50 +37,59 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchBlogs = async () => {
-    try {
-      setLoading(true);
-      console.log('📡 Fetching blogs from Firestore...');
-      
-      const blogsQuery = query(collection(db, 'blogs'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(blogsQuery);
-      
-      console.log(`📊 Found ${querySnapshot.size} blogs`);
-      
-      const blogsList: Blog[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log(`📝 Blog: ${data.title}, ID: ${doc.id}`);
-        blogsList.push({
-          id: doc.id,
-          title: data.title || '',
-          content: data.content || '',
-          excerpt: data.excerpt || '',
-          author: data.author || '',
-          authorId: data.authorId || '',
-          authorEmail: data.authorEmail || '',
-          category: data.category || 'General',
-          tags: data.tags || [],
-          imageUrl: data.imageUrl || '',
-          likes: data.likes || 0,
-          comments: data.comments || [],
-          status: data.status || 'published',
-          readingTime: data.readingTime || 0,
-          views: data.views || 0,
-          shares: data.shares || 0,
-          publishedAt: data.publishedAt || new Date().toISOString(),
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
-        } as Blog);
-      });
-      
-      setBlogs(blogsList);
-      console.log('✅ Blogs loaded successfully:', blogsList.length);
-    } catch (error) {
-      console.error('❌ Error fetching blogs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    console.log('📡 Fetching blogs from Firestore...');
+    
+    const blogsQuery = query(collection(db, 'blogs'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(blogsQuery);
+    
+    console.log(`📊 Found ${querySnapshot.size} blogs`);
+    
+    const blogsList: Blog[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      console.log(`📝 Blog: ${data.title}, ID: ${doc.id}`);
+      console.log(`🎬 Video URL: ${data.videoUrl || 'No video'}`);
+      blogsList.push({
+        id: doc.id,
+        title: data.title || '',
+        content: data.content || '',
+        excerpt: data.excerpt || '',
+        author: data.author || '',
+        authorId: data.authorId || '',
+        authorEmail: data.authorEmail || '',
+        category: data.category || 'General',
+        tags: data.tags || [],
+        imageUrl: data.imageUrl || '',
+        videoUrl: data.videoUrl || '',  // ← ADD THIS
+        videoThumbnail: data.videoThumbnail || '',
+        mediaType: data.mediaType || 'image',  // ← ADD THIS
+        likes: data.likes || 0,
+        comments: data.comments || [],
+        status: data.status || 'published',
+        readingTime: data.readingTime || 0,
+        views: data.views || 0,
+        shares: data.shares || 0,
+        publishedAt: data.publishedAt || new Date().toISOString(),
+        isFeatured: data.isFeatured || false,
+        isTrending: data.isTrending || false,
+        seoTitle: data.seoTitle || '',
+        seoDescription: data.seoDescription || '',
+        seoKeywords: data.seoKeywords || [],
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      } as Blog);
+    });
+    
+    setBlogs(blogsList);
+    console.log('✅ Blogs loaded successfully:', blogsList.length);
+  } catch (error) {
+    console.error('❌ Error fetching blogs:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // FIXED: Removed Firebase Storage upload, just store the base64 directly
   const createBlog = async (blogData: any) => {
@@ -134,57 +143,68 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getBlog = async (id: string): Promise<Blog | null> => {
-    console.log('📖 BlogContext.getBlog() called with ID:', id);
+  console.log('📖 BlogContext.getBlog() called with ID:', id);
+  
+  if (!id) {
+    console.log('❌ No ID provided to getBlog');
+    return null;
+  }
+  
+  try {
+    console.log('📡 Fetching document from Firestore for ID:', id);
+    const blogRef = doc(db, 'blogs', id);
+    const blogDoc = await getDoc(blogRef);
+    console.log('📄 Document exists:', blogDoc.exists());
     
-    if (!id) {
-      console.log('❌ No ID provided to getBlog');
-      return null;
-    }
-    
-    try {
-      console.log('📡 Fetching document from Firestore for ID:', id);
-      const blogRef = doc(db, 'blogs', id);
-      const blogDoc = await getDoc(blogRef);
-      console.log('📄 Document exists:', blogDoc.exists());
+    if (blogDoc.exists()) {
+      const data = blogDoc.data();
+      console.log('📊 Document data found:', data.title);
+      console.log('📊 Video URL from Firestore:', data.videoUrl);
+      console.log('📊 Media Type:', data.mediaType);
       
-      if (blogDoc.exists()) {
-        const data = blogDoc.data();
-        console.log('📊 Document data found:', data.title);
-        console.log('📊 Image URL length:', data.imageUrl?.length || 0);
-        
-        const blog = {
-          id: blogDoc.id,
-          title: data.title || '',
-          content: data.content || '',
-          excerpt: data.excerpt || '',
-          author: data.author || '',
-          authorId: data.authorId || '',
-          authorEmail: data.authorEmail || '',
-          category: data.category || 'General',
-          tags: data.tags || [],
-          imageUrl: data.imageUrl || '',
-          likes: data.likes || 0,
-          comments: data.comments || [],
-          status: data.status || 'published',
-          readingTime: data.readingTime || 0,
-          views: data.views || 0,
-          shares: data.shares || 0,
-          publishedAt: data.publishedAt || new Date().toISOString(),
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
-        } as Blog;
-        
-        console.log('✅ Blog parsed successfully:', blog.title);
-        return blog;
-      } else {
-        console.log('⚠️ No document found for ID:', id);
-        return null;
-      }
-    } catch (error) {
-      console.error('❌ Error in getBlog:', error);
+      const blog = {
+        id: blogDoc.id,
+        title: data.title || '',
+        content: data.content || '',
+        excerpt: data.excerpt || '',
+        author: data.author || '',
+        authorId: data.authorId || '',
+        authorEmail: data.authorEmail || '',
+        category: data.category || 'General',
+        tags: data.tags || [],
+        imageUrl: data.imageUrl || '',
+        videoUrl: data.videoUrl || '',  // ← ADD THIS
+        videoThumbnail: data.videoThumbnail || '',
+        mediaType: data.mediaType || 'image',  // ← ADD THIS
+        likes: data.likes || 0,
+        comments: data.comments || [],
+        status: data.status || 'published',
+        readingTime: data.readingTime || 0,
+        views: data.views || 0,
+        shares: data.shares || 0,
+        publishedAt: data.publishedAt || new Date().toISOString(),
+        isFeatured: data.isFeatured || false,
+        isTrending: data.isTrending || false,
+        seoTitle: data.seoTitle || '',
+        seoDescription: data.seoDescription || '',
+        seoKeywords: data.seoKeywords || [],
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      } as Blog;
+      
+      console.log('✅ Blog parsed successfully:', blog.title);
+      console.log('✅ Video URL in blog object:', blog.videoUrl);
+      console.log('✅ Media Type in blog object:', blog.mediaType);
+      return blog;
+    } else {
+      console.log('⚠️ No document found for ID:', id);
       return null;
     }
-  };
+  } catch (error) {
+    console.error('❌ Error in getBlog:', error);
+    return null;
+  }
+};
 
   const getBlogsByUser = async (userId: string): Promise<Blog[]> => {
     try {

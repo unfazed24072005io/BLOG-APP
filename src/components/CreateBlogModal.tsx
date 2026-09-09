@@ -20,6 +20,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useBlog } from '@/context/BlogContext';
 import { useAuth } from '@/context/AuthContext';
 import { COLORS } from '@/utils/constants';
+import { Video, ResizeMode } from 'expo-av';
+import { uploadVideo } from '@/utils/cloudinary';
 
 interface CreateBlogModalProps {
   visible: boolean;
@@ -43,12 +45,18 @@ export default function CreateBlogModal({
   const [content, setContent] = useState(editData?.content || '');
   const [image, setImage] = useState<any>(null);
   const [existingImage, setExistingImage] = useState(editData?.imageUrl || '');
+  const [video, setVideo] = useState<any>(null);
+  const [existingVideo, setExistingVideo] = useState(editData?.videoUrl || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [tags, setTags] = useState(editData?.tags?.join(', ') || '');
   const [category, setCategory] = useState(editData?.category || 'General');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'both'>(editData?.mediaType || 'image');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const categories = ['General', 'Technology', 'Business', 'Lifestyle', 'Health', 'Education', 'Travel', 'Food', 'Fashion', 'Sports'];
 
+  // Convert image to base64
   const convertToBase64 = async (imageUri: string): Promise<string> => {
     try {
       console.log('📤 Converting image to base64...');
@@ -89,11 +97,44 @@ export default function CreateBlogModal({
         console.log('📸 Image selected:', result.assets[0].uri);
         setImage(result.assets[0]);
         setExistingImage('');
+        setMediaType('image');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
       console.error('❌ Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const pickVideo = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setUploadProgress(0);
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        console.log('🎬 Video selected:', result.assets[0].uri);
+        console.log('📊 Video size:', result.assets[0].fileSize || 'Unknown');
+        
+        // Check file size (Cloudinary free tier supports large files)
+        if (result.assets[0].fileSize && result.assets[0].fileSize > 100 * 1024 * 1024) {
+          Alert.alert('File Too Large', 'Please select a video under 100MB');
+          return;
+        }
+        
+        setVideo(result.assets[0]);
+        setExistingVideo('');
+        setMediaType('video');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('❌ Error picking video:', error);
+      Alert.alert('Error', 'Failed to pick video');
     }
   };
 
@@ -111,9 +152,12 @@ export default function CreateBlogModal({
 
     try {
       setIsSubmitting(true);
+      setUploadProgress(0);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       let imageUrl = existingImage || '';
+      let videoUrl = existingVideo || '';
+      let mediaTypeValue = mediaType;
 
       // Convert image to base64 if selected
       if (image) {
@@ -124,7 +168,29 @@ export default function CreateBlogModal({
           console.log('✅ Image converted to base64, length:', imageUrl.length);
         } catch (error) {
           console.error('❌ Image conversion failed:', error);
-          Alert.alert('Warning', 'Image conversion failed. Blog will be created without image.');
+          Alert.alert('Warning', 'Image conversion failed.');
+        }
+      }
+
+      // Upload video to Cloudinary via proxy if selected
+      if (video) {
+        try {
+          console.log('🎬 Uploading video via proxy...');
+          setIsUploadingVideo(true);
+          setUploadProgress(30);
+          
+          // Call uploadVideo and store the result
+          const uploadedVideoUrl = await uploadVideo(video.uri);
+          videoUrl = uploadedVideoUrl; // ← FIXED: Assign to videoUrl
+          console.log('✅ Video uploaded, URL:', videoUrl);
+          mediaTypeValue = videoUrl && imageUrl ? 'both' : 'video';
+          setUploadProgress(100);
+          setIsUploadingVideo(false);
+        } catch (error) {
+          console.error('❌ Video upload failed:', error);
+          setIsUploadingVideo(false);
+          setUploadProgress(0);
+          Alert.alert('Warning', 'Video upload failed. Blog will be created without video.');
         }
       }
 
@@ -137,7 +203,9 @@ export default function CreateBlogModal({
         authorEmail: user.email || '',
         category: category,
         tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
-        imageUrl: imageUrl, // This is now base64 string
+        imageUrl: imageUrl,
+        videoUrl: videoUrl, // ← FIXED: This will now have the Cloudinary URL
+        mediaType: mediaTypeValue,
         likes: 0,
         comments: [],
         status: 'published',
@@ -147,8 +215,11 @@ export default function CreateBlogModal({
         publishedAt: new Date().toISOString(),
       };
 
-      console.log('📝 Saving blog data with base64 image');
-      console.log('📊 Image URL length:', imageUrl.length);
+      console.log('📝 Saving blog data with media:', {
+        hasImage: !!imageUrl,
+        hasVideo: !!videoUrl,
+        mediaType: mediaTypeValue
+      });
 
       if (editId) {
         await updateBlog(editId, blogData);
@@ -166,6 +237,8 @@ export default function CreateBlogModal({
       Alert.alert('Error', 'Failed to save blog. Please try again.');
     } finally {
       setIsSubmitting(false);
+      setIsUploadingVideo(false);
+      setUploadProgress(0);
     }
   };
 
@@ -174,8 +247,12 @@ export default function CreateBlogModal({
     setContent('');
     setImage(null);
     setExistingImage('');
+    setVideo(null);
+    setExistingVideo('');
     setTags('');
     setCategory('General');
+    setMediaType('image');
+    setUploadProgress(0);
   };
 
   return (
@@ -189,7 +266,6 @@ export default function CreateBlogModal({
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
             <View style={styles.modalContent}>
-              {/* Header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
                   {editId ? 'Edit Blog' : 'Create New Blog'}
@@ -203,28 +279,96 @@ export default function CreateBlogModal({
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
               >
-                {/* Image Picker */}
-                <Pressable onPress={pickImage} style={styles.imagePicker}>
-                  {(image || existingImage) ? (
+                {/* Upload Progress */}
+                {(isUploadingVideo || uploadProgress > 0) && (
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { width: `${uploadProgress || 50}%` }]} />
+                    </View>
+                    <Text style={styles.progressText}>
+                      {isUploadingVideo ? 'Uploading video to Cloudinary...' : `Uploading ${uploadProgress}%`}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Media Type Selection */}
+                <View style={styles.mediaTypeContainer}>
+                  <Text style={styles.mediaTypeLabel}>Add Media</Text>
+                  <View style={styles.mediaTypeButtons}>
+                    <Pressable
+                      onPress={pickImage}
+                      style={({ pressed }) => [
+                        styles.mediaTypeBtn,
+                        image && styles.mediaTypeBtnActive,
+                        { opacity: pressed ? 0.7 : 1 }
+                      ]}
+                    >
+                      <Feather name="image" size={20} color={image ? COLORS.white : COLORS.gray600} />
+                      <Text style={[styles.mediaTypeBtnText, image && styles.mediaTypeBtnTextActive]}>
+                        {image ? 'Image Selected' : 'Add Image'}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={pickVideo}
+                      style={({ pressed }) => [
+                        styles.mediaTypeBtn,
+                        video && styles.mediaTypeBtnActive,
+                        { opacity: pressed ? 0.7 : 1 }
+                      ]}
+                    >
+                      <Feather name="video" size={20} color={video ? COLORS.white : COLORS.gray600} />
+                      <Text style={[styles.mediaTypeBtnText, video && styles.mediaTypeBtnTextActive]}>
+                        {video ? 'Video Selected' : 'Add Video'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {(image || video) && (
+                    <Pressable
+                      onPress={() => {
+                        setImage(null);
+                        setExistingImage('');
+                        setVideo(null);
+                        setExistingVideo('');
+                        setMediaType('image');
+                        setUploadProgress(0);
+                      }}
+                      style={styles.clearMediaBtn}
+                    >
+                      <Text style={styles.clearMediaText}>Clear Media</Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* Image Preview */}
+                {(image || existingImage) && !video && (
+                  <View style={styles.imagePreviewContainer}>
                     <Image
                       source={{ uri: image?.uri || existingImage }}
                       style={styles.imagePreview}
                     />
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <Feather name="image" size={40} color={COLORS.gray400} />
-                      <Text style={styles.imagePlaceholderText}>Add Cover Image</Text>
+                    <View style={styles.mediaLabel}>
+                      <Feather name="image" size={14} color={COLORS.white} />
+                      <Text style={styles.mediaLabelText}>Image</Text>
                     </View>
-                  )}
-                  {(image || existingImage) && (
-                    <Pressable
-                      onPress={() => { setImage(null); setExistingImage(''); }}
-                      style={styles.removeImageBtn}
-                    >
-                      <Feather name="x" size={20} color={COLORS.white} />
-                    </Pressable>
-                  )}
-                </Pressable>
+                  </View>
+                )}
+
+                {/* Video Preview */}
+                {(video || existingVideo) && (
+                  <View style={styles.videoPreviewContainer}>
+                    <Video
+                      source={{ uri: video?.uri || existingVideo }}
+                      style={styles.videoPreview}
+                      useNativeControls
+                      resizeMode={ResizeMode.CONTAIN}
+                      isLooping={false}
+                    />
+                    <View style={styles.mediaLabel}>
+                      <Feather name="video" size={14} color={COLORS.white} />
+                      <Text style={styles.mediaLabelText}>Video (Cloudinary)</Text>
+                    </View>
+                  </View>
+                )}
 
                 {/* Form */}
                 <View style={styles.form}>
@@ -297,10 +441,10 @@ export default function CreateBlogModal({
                 {/* Submit Button */}
                 <Pressable
                   onPress={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isUploadingVideo}
                   style={({ pressed }) => [
                     styles.submitButton,
-                    { opacity: pressed || isSubmitting ? 0.8 : 1 },
+                    { opacity: pressed || isSubmitting || isUploadingVideo ? 0.8 : 1 },
                   ]}
                 >
                   <LinearGradient
@@ -309,7 +453,7 @@ export default function CreateBlogModal({
                     end={{ x: 1, y: 1 }}
                     style={styles.submitGradient}
                   >
-                    {isSubmitting ? (
+                    {isSubmitting || isUploadingVideo ? (
                       <ActivityIndicator color={COLORS.white} />
                     ) : (
                       <>
@@ -363,40 +507,113 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  imagePicker: {
-    height: 150,
-    borderRadius: 12,
+  progressContainer: {
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: COLORS.gray200,
+    borderRadius: 3,
     overflow: 'hidden',
-    backgroundColor: COLORS.gray100,
-    position: 'relative',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    borderStyle: 'dashed',
   },
-  imagePreview: {
-    width: '100%',
+  progressFill: {
     height: '100%',
-    resizeMode: 'cover',
+    backgroundColor: COLORS.primary,
+    borderRadius: 3,
   },
-  imagePlaceholder: {
+  progressText: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    marginTop: 4,
+    textAlign: 'center',
+    fontFamily: 'Inter_400Regular',
+  },
+  mediaTypeContainer: {
+    marginBottom: 16,
+  },
+  mediaTypeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.gray700,
+    marginBottom: 8,
+    fontFamily: 'Inter_500Medium',
+  },
+  mediaTypeButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  mediaTypeBtn: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: COLORS.gray100,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray200,
   },
-  imagePlaceholderText: {
-    color: COLORS.gray400,
+  mediaTypeBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  mediaTypeBtnText: {
     fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    color: COLORS.gray600,
+    fontFamily: 'Inter_500Medium',
   },
-  removeImageBtn: {
+  mediaTypeBtnTextActive: {
+    color: COLORS.white,
+  },
+  clearMediaBtn: {
+    marginTop: 8,
+    alignSelf: 'center',
+  },
+  clearMediaText: {
+    fontSize: 12,
+    color: COLORS.error,
+    fontFamily: 'Inter_500Medium',
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 150,
+    resizeMode: 'cover',
+  },
+  videoPreviewContainer: {
+    position: 'relative',
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  videoPreview: {
+    width: '100%',
+    height: 200,
+  },
+  mediaLabel: {
     position: 'absolute',
     top: 8,
-    right: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12,
-    padding: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  mediaLabelText: {
+    fontSize: 11,
+    color: COLORS.white,
+    fontFamily: 'Inter_500Medium',
   },
   form: {
     marginBottom: 16,

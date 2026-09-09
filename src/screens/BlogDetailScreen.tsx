@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,12 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { Video, ResizeMode } from 'expo-av';
 import { useBlog } from '@/context/BlogContext';
 import { useAuth } from '@/context/AuthContext';
 import { Blog } from '@/types';
@@ -25,6 +26,7 @@ export default function BlogDetailScreen() {
   const { isAdmin } = useAuth();
   const [blog, setBlog] = useState<Blog | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const videoRef = useRef(null);
 
   console.log('🔵 BlogDetailScreen mounted');
   console.log('📌 Params:', params);
@@ -48,7 +50,7 @@ export default function BlogDetailScreen() {
     try {
       console.log('📡 Calling getBlog()...');
       const data = await getBlog(blogId);
-      console.log('✅ getBlog() returned:', data);
+      console.log('✅ getBlog() returned:', data ? 'Blog found' : 'null');
       
       if (data) {
         console.log('📝 Blog data:', {
@@ -56,6 +58,9 @@ export default function BlogDetailScreen() {
           title: data.title,
           author: data.author,
           hasImage: !!data.imageUrl,
+          hasVideo: !!data.videoUrl,
+          videoUrl: data.videoUrl,
+          mediaType: data.mediaType,
           createdAt: data.createdAt
         });
         setBlog(data);
@@ -75,53 +80,96 @@ export default function BlogDetailScreen() {
   console.log('📊 Render state:', { 
     isLoading, 
     hasBlog: !!blog, 
-    blogTitle: blog?.title 
+    blogTitle: blog?.title,
+    hasVideo: blog?.videoUrl ? true : false,
+    videoUrl: blog?.videoUrl
   });
 
-  // Show loading state
-  if (isLoading) {
+  if (isLoading || !blog) {
     console.log('⏳ Showing loading spinner');
     return (
       <View style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={{ marginTop: 16, color: COLORS.gray500, fontFamily: 'Inter_400Regular' }}>
-          Loading blog...
-        </Text>
-        <Text style={{ marginTop: 8, color: COLORS.gray400, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-          ID: {blogId}
-        </Text>
+        <Text style={{ marginTop: 16, color: COLORS.gray500 }}>Loading blog...</Text>
       </View>
     );
   }
 
-  // Show error/empty state
-  if (!blog) {
-    console.log('❌ No blog found, showing error state');
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Feather name="file-text" size={64} color={COLORS.gray300} />
-        <Text style={{ marginTop: 16, fontSize: 18, color: COLORS.gray600, fontFamily: 'Inter_600SemiBold' }}>
-          Blog not found
-        </Text>
-        <Text style={{ marginTop: 8, color: COLORS.gray400, fontFamily: 'Inter_400Regular' }}>
-          The blog you're looking for doesn't exist
-        </Text>
-        <Pressable 
-          onPress={() => router.back()} 
-          style={{ marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: COLORS.primary, borderRadius: 12 }}
-        >
-          <Text style={{ color: COLORS.white, fontFamily: 'Inter_600SemiBold' }}>Go Back</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  console.log('✅ Rendering blog content:', blog.title);
   const formattedDate = blog.createdAt ? new Date(blog.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   }) : '';
+
+  const hasVideo = blog.videoUrl && blog.videoUrl.length > 0;
+  const hasImage = blog.imageUrl && blog.imageUrl.length > 0;
+
+  console.log('🎬 Video check:', {
+    hasVideo,
+    videoUrl: blog.videoUrl,
+    videoUrlLength: blog.videoUrl?.length || 0,
+    mediaType: blog.mediaType
+  });
+
+  // Render video player based on platform
+  const renderVideoPlayer = () => {
+    console.log('🎬 Rendering video player, hasVideo:', hasVideo);
+    
+    if (!hasVideo) {
+      console.log('❌ No video to render');
+      return null;
+    }
+
+    console.log('🎬 Platform:', Platform.OS);
+    console.log('🎬 Video URL:', blog.videoUrl);
+
+    if (Platform.OS === 'web') {
+      console.log('🌐 Using HTML5 video for web');
+      // Use HTML5 video for web
+      return (
+        <View style={styles.videoContainer}>
+          <video
+            src={blog.videoUrl}
+            controls
+            playsInline
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#000',
+            }}
+            onLoadedMetadata={() => console.log('✅ Video metadata loaded')}
+            onError={(e) => console.error('❌ Video error:', e)}
+          />
+          <View style={styles.videoBadge}>
+            <Feather name="video" size={14} color={COLORS.white} />
+            <Text style={styles.videoBadgeText}>Video</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // Use expo-av for native
+    console.log('📱 Using expo-av for native');
+    return (
+      <View style={styles.videoContainer}>
+        <Video
+          ref={videoRef}
+          source={{ uri: blog.videoUrl }}
+          style={styles.videoPlayer}
+          useNativeControls
+          resizeMode={ResizeMode.CONTAIN}
+          isLooping={false}
+          shouldPlay={false}
+          onLoad={() => console.log('✅ Video loaded successfully')}
+          onError={(error) => console.error('❌ Video error:', error)}
+        />
+        <View style={styles.videoBadge}>
+          <Feather name="video" size={14} color={COLORS.white} />
+          <Text style={styles.videoBadgeText}>Video</Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -135,7 +183,11 @@ export default function BlogDetailScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {blog.imageUrl && (
+        {/* Video Player */}
+        {renderVideoPlayer()}
+
+        {/* Image */}
+        {hasImage && !hasVideo && (
           <Image source={{ uri: blog.imageUrl }} style={styles.coverImage} />
         )}
 
@@ -161,6 +213,12 @@ export default function BlogDetailScreen() {
               <View style={styles.metaItem}>
                 <Feather name="clock" size={14} color={COLORS.gray500} />
                 <Text style={styles.metaText}>{blog.readingTime} min read</Text>
+              </View>
+            )}
+            {hasVideo && (
+              <View style={styles.metaItem}>
+                <Feather name="video" size={14} color={COLORS.gray500} />
+                <Text style={styles.metaText}>Video</Text>
               </View>
             )}
           </View>
@@ -190,7 +248,6 @@ const styles = StyleSheet.create({
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   header: {
     flexDirection: 'row',
@@ -212,6 +269,33 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  videoContainer: {
+    width: '100%',
+    height: 250,
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  videoPlayer: {
+    width: '100%',
+    height: '100%',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  videoBadgeText: {
+    fontSize: 12,
+    color: COLORS.white,
+    fontFamily: 'Inter_500Medium',
   },
   coverImage: {
     width: '100%',

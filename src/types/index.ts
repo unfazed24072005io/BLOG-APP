@@ -9,7 +9,10 @@ export interface Blog {
   authorPhoto?: string;
   category: string;
   tags: string[];
-  imageUrl?: string;
+  imageUrl?: string;      // Base64 image
+  videoUrl?: string;      // File.io video URL
+  videoThumbnail?: string;
+  mediaType?: 'image' | 'video' | 'both';
   likes: number;
   likesCount?: number;
   comments: Comment[];

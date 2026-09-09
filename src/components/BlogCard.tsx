@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Image, Dimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Blog } from '@/types';
 import { COLORS } from '@/utils/constants';
 import { useAuth } from '@/context/AuthContext';
@@ -55,6 +56,18 @@ export const BlogCard: React.FC<BlogCardProps> = ({
   };
 
   const categoryColor = getCategoryColor(blog.category);
+  const hasVideo = blog.videoUrl && blog.videoUrl.length > 0;
+  const hasImage = blog.imageUrl && blog.imageUrl.length > 0;
+
+  // Get video thumbnail from Cloudinary
+  const getVideoThumbnail = (videoUrl: string) => {
+    if (!videoUrl) return null;
+    // For Cloudinary videos, add thumbnail transformation
+    if (videoUrl.includes('cloudinary.com')) {
+      return videoUrl.replace('/upload/', '/upload/c_fill,h_200,w_400/');
+    }
+    return null;
+  };
 
   const renderContent = () => {
     switch (variant) {
@@ -64,8 +77,17 @@ export const BlogCard: React.FC<BlogCardProps> = ({
             styles.featuredCard,
             { opacity: pressed ? 0.95 : 1 }
           ]}>
-            {blog.imageUrl && (
-              <Image source={{ uri: blog.imageUrl }} style={styles.featuredImage} />
+            {(hasImage || hasVideo) && (
+              <Image 
+                source={{ uri: hasVideo ? getVideoThumbnail(blog.videoUrl!) || blog.imageUrl : blog.imageUrl }} 
+                style={styles.featuredImage} 
+              />
+            )}
+            {hasVideo && (
+              <View style={styles.featuredVideoBadge}>
+                <Feather name="video" size={14} color={COLORS.white} />
+                <Text style={styles.featuredVideoBadgeText}>Video</Text>
+              </View>
             )}
             <View style={styles.featuredOverlay}>
               <LinearGradient
@@ -116,8 +138,16 @@ export const BlogCard: React.FC<BlogCardProps> = ({
             styles.compactCard,
             { opacity: pressed ? 0.95 : 1 }
           ]}>
-            {blog.imageUrl && (
-              <Image source={{ uri: blog.imageUrl }} style={styles.compactImage} />
+            {(hasImage || hasVideo) && (
+              <Image 
+                source={{ uri: hasVideo ? getVideoThumbnail(blog.videoUrl!) || blog.imageUrl : blog.imageUrl }} 
+                style={styles.compactImage} 
+              />
+            )}
+            {hasVideo && (
+              <View style={styles.compactVideoBadge}>
+                <Feather name="video" size={10} color={COLORS.white} />
+              </View>
             )}
             <View style={styles.compactContent}>
               <Text style={styles.compactTitle} numberOfLines={2}>
@@ -126,6 +156,12 @@ export const BlogCard: React.FC<BlogCardProps> = ({
               <View style={styles.compactMeta}>
                 <Text style={styles.compactAuthor}>{blog.author}</Text>
                 <Text style={styles.compactDate}>{formattedDate}</Text>
+                {hasVideo && (
+                  <View style={styles.compactVideoIndicator}>
+                    <Feather name="video" size={10} color={COLORS.primary} />
+                    <Text style={styles.compactVideoText}>Video</Text>
+                  </View>
+                )}
               </View>
             </View>
           </Pressable>
@@ -137,8 +173,17 @@ export const BlogCard: React.FC<BlogCardProps> = ({
             styles.card,
             { opacity: pressed ? 0.95 : 1 }
           ]}>
-            {blog.imageUrl && (
-              <Image source={{ uri: blog.imageUrl }} style={styles.image} />
+            {(hasImage || hasVideo) && (
+              <Image 
+                source={{ uri: hasVideo ? getVideoThumbnail(blog.videoUrl!) || blog.imageUrl : blog.imageUrl }} 
+                style={styles.image} 
+              />
+            )}
+            {hasVideo && (
+              <View style={styles.videoBadge}>
+                <Feather name="video" size={12} color={COLORS.white} />
+                <Text style={styles.videoBadgeText}>Video</Text>
+              </View>
             )}
             <View style={styles.content}>
               <View style={styles.headerRow}>
@@ -153,6 +198,12 @@ export const BlogCard: React.FC<BlogCardProps> = ({
                   <View style={styles.featuredChip}>
                     <Feather name="star" size={12} color="#F59E0B" />
                     <Text style={styles.featuredChipText}>Featured</Text>
+                  </View>
+                )}
+                {hasVideo && (
+                  <View style={styles.videoChip}>
+                    <Feather name="video" size={12} color={COLORS.primary} />
+                    <Text style={styles.videoChipText}>Video</Text>
                   </View>
                 )}
               </View>
@@ -180,6 +231,12 @@ export const BlogCard: React.FC<BlogCardProps> = ({
                   <View style={styles.metaItem}>
                     <Feather name="heart" size={12} color={COLORS.gray400} />
                     <Text style={styles.metaText}>{blog.likes}</Text>
+                  </View>
+                )}
+                {hasVideo && (
+                  <View style={styles.metaItem}>
+                    <Feather name="video" size={12} color={COLORS.primary} />
+                    <Text style={styles.metaText}>Video</Text>
                   </View>
                 )}
               </View>
@@ -257,11 +314,45 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#F1F5F9',
+    position: 'relative',
   },
   image: {
     width: '100%',
     height: 200,
     resizeMode: 'cover',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  videoBadgeText: {
+    fontSize: 11,
+    color: COLORS.white,
+    fontFamily: 'Inter_500Medium',
+  },
+  videoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary + '20',
+  },
+  videoChipText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.primary,
+    fontFamily: 'Inter_500Medium',
   },
   content: {
     padding: 16,
@@ -271,6 +362,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 8,
+    flexWrap: 'wrap',
   },
   categoryChip: {
     paddingHorizontal: 10,
@@ -318,6 +410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 12,
+    flexWrap: 'wrap',
   },
   metaItem: {
     flexDirection: 'row',
@@ -414,11 +507,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
+    position: 'relative',
   },
   featuredImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
+  },
+  featuredVideoBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    zIndex: 10,
+  },
+  featuredVideoBadgeText: {
+    fontSize: 12,
+    color: COLORS.white,
+    fontFamily: 'Inter_500Medium',
   },
   featuredOverlay: {
     position: 'absolute',
@@ -480,6 +592,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     padding: 8,
     borderRadius: 12,
+    zIndex: 10,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
@@ -510,11 +623,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
+    position: 'relative',
   },
   compactImage: {
     width: 80,
     height: 80,
     resizeMode: 'cover',
+  },
+  compactVideoBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 4,
+    padding: 2,
   },
   compactContent: {
     flex: 1,
@@ -533,6 +655,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   compactAuthor: {
     fontSize: 11,
@@ -543,5 +666,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.gray400,
     fontFamily: 'Inter_400Regular',
+  },
+  compactVideoIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  compactVideoText: {
+    fontSize: 10,
+    color: COLORS.primary,
+    fontFamily: 'Inter_500Medium',
   },
 });
